@@ -109,6 +109,7 @@ class Configuration(object):
             self.set_network()
             self.set_terminal()
             self.set_custom_sequences()
+            self.set_lcd()
         else:
             self.sms = None
             self.who_can = dict()
@@ -250,6 +251,20 @@ class Configuration(object):
         scs["timing"] = self.config.getint('custom_sequences', 'timing')
         scs["brightness_range"] = self.config.getint('custom_sequences', 'brightness_range')
         self.custom_sequences = Section(scs)
+
+    def set_lcd(self):
+        lcd = dict()
+        if (self.config.has_section('lcd')):
+            lcd["address"] = int(self.config.get('lcd', 'address'), 16)
+            lcd["bus"] = self.config.getint('lcd', 'bus')
+            lcd["width"] = self.config.getint('lcd', 'width')
+            lcd["rows"] = self.config.getint('lcd', 'rows')
+        else:
+            lcd["address"] = None
+            lcd["bus"] = None
+            lcd["width"] = None
+            lcd["rows"] = None
+        self.lcd = Section(lcd)
 
     def set_led(self, config_file):
         """

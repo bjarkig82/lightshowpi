@@ -150,6 +150,9 @@ log Installing wiringpipy...
 pip3 install --upgrade git+https://broken2048@bitbucket.org/broken2048/wiringpipy.git
 verify "Installation of wiringpipy failed"
 
+# Install rpi_lcd
+pip3 install rpi_lcd
+
 # Optionally add a line to /etc/sudoers
 if [ -f /etc/sudoers ]; then
     KEEP_EN="Defaults             env_keep="SYNCHRONIZED_LIGHTS_HOME""

@@ -79,9 +79,12 @@ import wave
 import curses
 import bright_curses
 import mutagen
+import math
 from queue import Queue, Empty
 from threading import Thread
 import csv
+from rpi_lcd import LCD
+
 
 import alsaaudio as aa
 import decoder
@@ -92,6 +95,7 @@ import Platform
 import fft
 from prepostshow import PrePostShow
 import RunningStats
+from lcd import LCD
 
 
 # Make sure SYNCHRONIZED_LIGHTS_HOME environment variable is set
@@ -164,6 +168,7 @@ class Lightshow(object):
         self.cache_filename = None
         self.config_filename = None
         self.song_filename = None
+        self.song_metadata = None
         self.terminal = None
         self.sequence_filename = None
         self.sequence_type = 'auto'
@@ -183,6 +188,7 @@ class Lightshow(object):
         self.network = hc.network
         self.server = self.network.networking == "server" or self.network.networking == "serverjson"
         self.client = self.network.networking == "client"
+        self.lcd = LCD(cm.lcd.address, cm.lcd.bus, cm.lcd.width, cm.lcd.rows);
 
         if cm.lightshow.use_fifo:
             if os.path.exists(cm.lightshow.fifo):
@@ -210,6 +216,7 @@ class Lightshow(object):
             self.network.unset_playing()
 
         hc.clean_up()
+        self.lcd.clear()
 
         if cm.fm.enabled:
             self.fm_process.kill()
@@ -781,7 +788,7 @@ class Lightshow(object):
         """
         Determine the next file to play
 
-        :return: tuple containing 3 strings: song_filename, config_filename, cache_filename
+        :return: tuple containing 4 strings: song_filename, config_filename, cache_filename, song_metadata
         :rtype: tuple
         """
         play_now = int(cm.get_state('play_now', "0"))
@@ -854,18 +861,19 @@ class Lightshow(object):
             os.path.dirname(filename) + "/." + os.path.basename(self.song_filename) + ".sync"
 
         os.system("/bin/echo \"\" >" + cm.home_dir + "/logs/now_playing.txt")
-        metadata = mutagen.File(self.song_filename, easy=True)
-        if not metadata is None:
-            if "title" in metadata and "artist" in metadata:
-                now_playing = "Now Playing " + metadata["title"][0] + " by " + metadata["artist"][0]
-            elif "title" in metadata:
-                now_playing = "Now Playing " + metadata["title"][0]
+        self.song_metadata = mutagen.File(self.song_filename, easy=True)
+        
+        if not self.song_metadata is None:
+            if "title" in self.song_metadata and "artist" in self.song_metadata:
+                now_playing = "Now Playing " + self.song_metadata["title"][0] + " by " + self.song_metadata["artist"][0]
+            elif "title" in self.song_metadata:
+                now_playing = "Now Playing " + self.song_metadata["title"][0]
             else:
                 now_playing = "Now Playing Unknown"
             if cm.lightshow.songname_command:
                 os.system(cm.lightshow.songname_command + " \"" + now_playing + "\"")
         else:
-            now_playing = "Now Playing " + os.path.basename(self.song_filename)
+            now_playing = "Now Playing " + os.path.basename(song_filename)
         os.system("/bin/echo " + " \"" + now_playing + "\"" + " >" + cm.home_dir + "/logs/now_playing.txt")
 
     def play_song(self):
@@ -893,6 +901,8 @@ class Lightshow(object):
                 play_now = int(cm.get_state('play_now', "0"))
 
         self.network.set_playing()
+        self.lcd.text(self.song_metadata["artist"][0] + " - " + self.song_metadata["title"][0], 1)
+        self.lcd.display_timer(math.ceil(self.song_metadata.info.length), 2)
 
         # Ensure play_now is reset before beginning playback
         if play_now:
@@ -1007,6 +1017,7 @@ class Lightshow(object):
 
         # We're done, turn it all off and clean up things ;)
         hc.clean_up()
+        self.lcd.clear()
 
     def network_client(self):
         """Network client support
